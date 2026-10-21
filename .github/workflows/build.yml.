@@ -1,0 +1,61 @@
+name: Build RANDOM PSP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/**"
+      - "assets/sprites/**"
+      - "Makefile"
+      - ".github/workflows/build.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    container:
+      image: pspdev/pspdev:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify project files
+        run: |
+          test -f Makefile
+          test -f src/main.c
+          test -f src/character.c
+          test -f src/character.h
+          test -d assets/sprites
+          echo "Project files verified."
+
+      - name: Build RANDOM
+        run: |
+          make clean || true
+          make
+
+      - name: Verify EBOOT
+        run: |
+          test -f EBOOT.PBP
+          echo "EBOOT.PBP generated successfully."
+
+      - name: Prepare PSP folder
+        run: |
+          mkdir -p package/PSP/GAME/RANDOM/assets/sprites
+          cp EBOOT.PBP package/PSP/GAME/RANDOM/
+          cp assets/sprites/*.png \
+            package/PSP/GAME/RANDOM/assets/sprites/
+
+      - name: Create ZIP
+        run: |
+          cd package
+          zip -r ../RANDOM-PSP.zip PSP
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: RANDOM-PSP
+          path: |
+            EBOOT.PBP
+            RANDOM-PSP.zip
+          if-no-files-found: error
